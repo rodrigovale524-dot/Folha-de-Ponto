@@ -1,0 +1,109 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee",
+      "description": "Represents an employee in the system.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The full name of the employee."
+        },
+        "role": {
+          "type": "string",
+          "description": "The job role or function of the employee."
+        },
+        "dailyRate": {
+          "type": "number",
+          "description": "The daily payment rate for the employee."
+        },
+        "pixKey": {
+          "type": "string",
+          "description": "The PIX key for payments."
+        },
+        "bankName": {
+          "type": "string",
+          "description": "The name of the bank."
+        },
+        "bankAgency": {
+          "type": "string",
+          "description": "The bank agency number."
+        },
+        "bankAccount": {
+          "type": "string",
+          "description": "The bank account number."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user who owns this employee record."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the employee was created."
+        }
+      },
+      "required": ["name", "ownerId", "createdAt"]
+    },
+    "UserConfig": {
+      "title": "User Configuration",
+      "description": "Stores user-specific settings like PIN.",
+      "type": "object",
+      "properties": {
+        "pin": {
+          "type": "string",
+          "description": "A 4-6 digit PIN for app access."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user."
+        }
+      },
+      "required": ["ownerId"]
+    },
+    "AttendanceRecord": {
+      "title": "Attendance Record",
+      "description": "Represents a daily attendance record for an employee.",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string",
+          "description": "The ID of the employee."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date of the attendance (YYYY-MM-DD)."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["D", "M", "F"],
+          "description": "The type of attendance: D (Diária), M (Meia), F (Falta)."
+        },
+        "monthYear": {
+          "type": "string",
+          "description": "The month and year of the record (YYYY-MM)."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user who owns this record."
+        }
+      },
+      "required": ["employeeId", "date", "type", "monthYear", "ownerId"]
+    }
+  },
+  "firestore": {
+    "employees": {
+      "schema": "Employee",
+      "description": "Collection of employees."
+    },
+    "attendance": {
+      "schema": "AttendanceRecord",
+      "description": "Collection of attendance records."
+    },
+    "userConfigs": {
+      "schema": "UserConfig",
+      "description": "Collection of user configurations."
+    }
+  }
+}

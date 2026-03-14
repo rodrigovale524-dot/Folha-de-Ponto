@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: employees
+    // Fields:
+    //   - name: string (required)
+    //   - role: string (optional)
+    //   - dailyRate: number (optional)
+    //   - pixKey: string (optional)
+    //   - bankName: string (optional)
+    //   - bankAgency: string (optional)
+    //   - bankAccount: string (optional)
+    //   - ownerId: string (required, immutable)
+    //   - createdAt: string (required, immutable)
+    //
+    // Collection: userConfigs
+    // Fields:
+    //   - pin: string (optional)
+    //   - ownerId: string (required, immutable)
+    //
+    // Collection: attendance
+    // Fields:
+    //   - employeeId: string (required)
+    //   - date: string (required)
+    //   - type: string (required, enum: D, M, F)
+    //   - monthYear: string (required)
+    //   - ownerId: string (required, immutable)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "rodrigovale524@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidEmployee(data) {
+      return hasRequiredFields(['name', 'ownerId', 'createdAt']) &&
+             hasOnlyAllowedFields(['name', 'role', 'dailyRate', 'pixKey', 'bankName', 'bankAgency', 'bankAccount', 'ownerId', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (data.role == null || (data.role is string && data.role.size() < 100)) &&
+             (data.dailyRate == null || data.dailyRate is number) &&
+             (data.pixKey == null || (data.pixKey is string && data.pixKey.size() < 100)) &&
+             (data.bankName == null || (data.bankName is string && data.bankName.size() < 100)) &&
+             (data.bankAgency == null || (data.bankAgency is string && data.bankAgency.size() < 20)) &&
+             (data.bankAccount == null || (data.bankAccount is string && data.bankAccount.size() < 30)) &&
+             data.ownerId == request.auth.uid &&
+             data.createdAt is string;
+    }
+
+    function isValidUserConfig(data) {
+      return hasRequiredFields(['ownerId']) &&
+             hasOnlyAllowedFields(['pin', 'ownerId']) &&
+             (data.pin == null || (data.pin is string && data.pin.matches("^\\d{4,6}$"))) &&
+             data.ownerId == request.auth.uid;
+    }
+
+    function isValidAttendance(data) {
+      return hasRequiredFields(['employeeId', 'date', 'type', 'monthYear', 'ownerId']) &&
+             hasOnlyAllowedFields(['employeeId', 'date', 'type', 'monthYear', 'ownerId']) &&
+             data.employeeId is string &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.type in ['D', 'M', 'F'] &&
+             data.monthYear is string && data.monthYear.matches("^\\d{4}-\\d{2}$") &&
+             data.ownerId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /employees/{employeeId} {
+      allow read: if isOwner(resource.data.ownerId);
+      allow create: if isAuthenticated() && isValidEmployee(request.resource.data);
+      allow update: if isOwner(resource.data.ownerId) && 
+                      isValidEmployee(request.resource.data) &&
+                      request.resource.data.ownerId == resource.data.ownerId &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(resource.data.ownerId);
+    }
+
+    match /attendance/{recordId} {
+      allow read: if isOwner(resource.data.ownerId);
+      allow create: if isAuthenticated() && isValidAttendance(request.resource.data);
+      allow update: if isOwner(resource.data.ownerId) && 
+                      isValidAttendance(request.resource.data) &&
+                      request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isOwner(resource.data.ownerId);
+    }
+
+    match /userConfigs/{configId} {
+      allow read: if isOwner(configId);
+      allow create: if isAuthenticated() && isValidUserConfig(request.resource.data) && request.resource.id == request.auth.uid;
+      allow update: if isOwner(configId) && isValidUserConfig(request.resource.data);
+      allow delete: if isOwner(configId);
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
